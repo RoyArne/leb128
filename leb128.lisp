@@ -2,12 +2,14 @@
 ;;;;
 (in-package :roy-arne.gangstad.leb128)
 
+
 (defun unsigned-length (integer)
   "Return the length of INTEGER in the unsigned LEB-128 format."
   
   (declare (type integer integer))
 
   (max 1 (ceiling (integer-length integer) 7)))
+
 
 
 (defun encode-unsigned (integer &optional vector (start 0))
@@ -37,24 +39,45 @@ and INTEGER is encoded into it beginning at START."
 				 (logior byte #x80)))
        finally (return (values out i))))
 
-  
-(defun decode-unsigned (vector &optional (start 0))
-  "Return an integer decoded from VECTOR beginning at START,
+
+
+(defun decode-unsigned (input &optional (start 0))
+  "Return an integer decoded from INPUT beginning at START,
 and the end index of the encoded value.
 
-The integer is decoded from the unsigned LEB-128 format."
-  
-  (declare (type (vector (unsigned-byte 8)) vector)
+The integer is decoded from the unsigned LEB-128 format.
+
+INPUT may be a stream or a (vector (unsigned-byte 8)).
+
+If INPUT is a stream then START number of bytes is consumed and
+discarded before the integer is decoded. The end index returned will
+be the number of bytes consumed in total."
+
+  (declare (type (or stream (vector (unsigned-byte 8))) input)
 	   (type fixnum start))
 
-  (loop
-     with integer = 0
-     for byte = (aref vector start)
-     for shift = 0 then (+ shift 7)
-     do (setf integer (logior integer (ash (logand byte #x7F) shift))
-	      start (1+ start))
-     until (zerop (logand byte #x80))
-     finally (return (values integer start))))
+  (let ((integer 0))
+    (etypecase input
+      (vector
+       (loop
+	  for byte = (aref input start)
+	  for shift = 0 then (+ shift 7)
+	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+	  do (incf start)
+	  until (zerop (logand byte #x80))))
+      (stream
+       (loop
+	  initially (when (plusp start)
+		      (loop
+			 for i from 1 upto start
+			 do (read-byte input)))
+	  for byte = (read-byte input)
+	  for shift = 0 then (+ shift 7)
+	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+	  do (incf start)
+	  until (zerop (logand byte #x80)))))
+    (values integer start)))
+
 
 
 (defun signed-length (integer)
@@ -66,6 +89,7 @@ The integer is decoded from the unsigned LEB-128 format."
 			    (lognot integer)
 			    integer)
 			1)))
+
 
 
 (defun encode-signed (integer &optional vector (start 0))
@@ -95,6 +119,7 @@ and INTEGER is encoded into it beginning at START."
 			       (logior byte #x80)))
 
      finally (return (values out end))))
+
 
 
 (defun decode-signed (input &optional (start 0))
