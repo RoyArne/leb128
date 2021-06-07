@@ -36,32 +36,18 @@ beginning at START. Return OUTPUT and the end index of the encoding."
     (when (null output)
       (setf output (make-array end :element-type '(unsigned-byte 8) :initial-element 0)))
 
-    (etypecase output
-      (vector
-       (loop
-	  for i from start below end
-	  for byte = (logand integer #x7F)
-	  do (setf integer (ash integer -7))
-	  do (setf (aref output i) (if (zerop integer)
-				       byte
-				       (logior byte #x80)))
-	  finally (return (values output i))))
-      (stream
-       (loop
-	  initially (when (plusp start)
-		      (loop
-			 for i from 1 upto start
-			 do (write-byte 0 output)))
-	  for i from start below end
-	  for byte = (logand integer #x7F)
-	  do (setf integer (ash integer -7))
-	  do (write-byte (if (zerop integer)
-			     byte
-			     (logior byte #x80))
-			 output)
-			     
-	  finally (return (values t i)))))))
-	
+    (loop
+       initially (typecase output (stream (dotimes (j start) (write-byte 0 output))))
+       for i from start below end
+       for initial-byte = (logand integer #x7F)
+       do (setf integer (ash integer -7))
+       do (let ((byte (if (zerop integer)
+			  initial-byte
+			  (logior initial-byte #x80))))
+	    (etypecase output
+	      (vector (setf (aref output i) byte))
+	      (stream (write-byte byte output))))
+       finally (return (values output i)))))
       
 
 
@@ -81,25 +67,15 @@ be the number of bytes consumed in total."
 	   (type fixnum start))
 
   (let ((integer 0))
-    (etypecase input
-      (vector
-       (loop
-	  for byte = (aref input start)
-	  for shift = 0 then (+ shift 7)
-	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
-	  do (incf start)
-	  until (zerop (logand byte #x80))))
-      (stream
-       (loop
-	  initially (when (plusp start)
-		      (loop
-			 for i from 1 upto start
-			 do (read-byte input)))
-	  for byte = (read-byte input)
-	  for shift = 0 then (+ shift 7)
-	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
-	  do (incf start)
-	  until (zerop (logand byte #x80)))))
+    (loop
+       initially (typecase input (stream (dotimes (j start) (read-byte input))))
+       for byte = (etypecase input
+		    (vector (aref input start))
+		    (stream (read-byte input)))
+       for shift = 0 then (+ shift 7)
+       do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+       do (incf start)
+       until (zerop (logand byte #x80)))
     (values integer start)))
 
 
@@ -140,30 +116,19 @@ beginning at START. Return OUTPUT and the end index of the encoding."
     (when (null output)
       (setf output (make-array end :element-type '(unsigned-byte 8) :initial-element 0)))
 
-    (etypecase output
-      (vector
-       (loop
-	  for i from start below end
-	  for byte = (logand integer #x7F)
-	  do (setf integer (ash integer -7))
-	  do (setf (aref output i) (if (= i (1- end))
-				       byte
-				       (logior byte #x80)))
-	  finally (return (values output i))))
-      (stream
-       (loop
-	  initially (when (plusp start)
-		      (loop
-			 for i from 1 upto start
-			 do (write-byte 0 output)))
-	  for i from start below end
-	  for byte = (logand integer #x7F)
-	  do (setf integer (ash integer -7))
-	  do (write-byte (if (= i (1- end))
-			     byte
-			     (logior byte #x80))
-			 output)
-	  finally (return (values t i)))))))
+    (loop
+       initially (typecase output (stream (dotimes (j start) (write-byte 0 output))))
+       for i from start below end
+       for initial-byte = (logand integer #x7F)
+       for byte = (if (= i (1- end))
+		       initial-byte
+		       (logior initial-byte #x80))
+       do (etypecase output
+	    (vector (setf (aref output i) byte))
+	    (stream (write-byte byte output)))
+       do (setf integer (ash integer -7))
+       finally (return (values output i)))))
+
 
 
 
@@ -181,32 +146,19 @@ be the number of bytes consumed in total."
 
   (declare (type (or stream (vector (unsigned-byte 8))) input)
 	   (type fixnum start))
-  
+
   (let ((integer 0)
 	(shift 0))
-    (etypecase input
-      (vector
-       (loop
-	  for byte = (aref input start)
-	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
-	  do (incf shift 7)
-	  do (incf start 1)
-	  until (zerop (logand byte #x80))
-	  finally (setf integer (if (plusp (logand byte #x40))
-				    (logior integer (ash -1 shift))
-				    integer))))
-      (stream
-       (loop
-	  initially (when (plusp start)
-		      (loop
-			 for i from 1 upto start
-			 do (read-byte input)))
-	  for byte = (read-byte input)
-	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
-	  do (incf shift 7)
-	  do (incf start 1)
-	  until (zerop (logand byte #x80))
-	  finally (setf integer (if (plusp (logand byte #x40))
-				    (logior integer (ash -1 shift))
-				    integer)))))
+    (loop
+       initially (typecase input (stream (dotimes (j start) (read-byte input))))
+       for byte = (etypecase input
+		    (vector (aref input start))
+		    (stream (read-byte input)))
+       do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+       do (incf shift 7)
+       do (incf start 1)
+       until (zerop (logand byte #x80))
+       finally (setf integer (if (plusp (logand byte #x40))
+				 (logior integer (ash -1 shift))
+				 integer)))
     (values integer start)))
