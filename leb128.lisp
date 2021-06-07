@@ -97,25 +97,46 @@ and INTEGER is encoded into it beginning at START."
      finally (return (values out end))))
 
 
-(defun decode-signed (vector &optional (start 0))
-  "Return an integer decoded from VECTOR beginning at START,
+(defun decode-signed (input &optional (start 0))
+  "Return an integer decoded from INPUT beginning at START,
 and the end index of the encoded value.
 
-The integer is decoded from the signed LEB-128 format."
-  
-  (declare (type (vector (unsigned-byte 8)) vector)
+The integer is decoded from the signed LEB-128 format.
+
+INPUT may be a stream or a (vector (unsigned-byte 8)).
+
+If INPUT is a stream then START number of bytes is consumed and
+discarded before the integer is decoded. The end index returned will
+be the number of bytes consumed in total."
+
+  (declare (type (or stream (vector (unsigned-byte 8))) input)
 	   (type fixnum start))
-
-  (loop
-     with integer = 0
-     with shift  = 0
-     for byte = (aref vector start)
-     do (setf integer (logior integer (ash (logand byte #x7F) shift))
-	      shift (+ shift 7)
-	      start (1+ start))
-     until (zerop (logand byte #x80))
-     finally (return (values (if (plusp (logand byte #x40))
-				 (logior integer (ash -1 shift))
-				 integer)
-			     start))))
-
+  
+  (let ((integer 0)
+	(shift 0))
+    (etypecase input
+      (vector
+       (loop
+	  for byte = (aref input start)
+	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+	  do (incf shift 7)
+	  do (incf start 1)
+	  until (zerop (logand byte #x80))
+	  finally (setf integer (if (plusp (logand byte #x40))
+				    (logior integer (ash -1 shift))
+				    integer))))
+      (stream
+       (loop
+	  initially (when (plusp start)
+		      (loop
+			 for i from 1 upto start
+			 do (read-byte input)))
+	  for byte = (read-byte input)
+	  do (setf integer (logior integer (ash (logand byte #x7F) shift)))
+	  do (incf shift 7)
+	  do (incf start 1)
+	  until (zerop (logand byte #x80))
+	  finally (setf integer (if (plusp (logand byte #x40))
+				    (logior integer (ash -1 shift))
+				    integer)))))
+    (values integer start)))
