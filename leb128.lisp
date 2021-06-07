@@ -12,33 +12,57 @@
 
 
 
-(defun encode-unsigned (integer &optional vector (start 0))
-  "Return a (vector (unsigned-byte 8)) encoding INTEGER,
-and the end index of the encoded value.
+(defun encode-unsigned (integer &optional output (start 0))
+  "Encode INTEGER in the unsigned LEB128 format.
 
-INTEGER is encoded in the unsigned LEB-128 format.
+If OUTPUT is a stream then write the encoded INTEGER to it, preceding
+the encoding with START number of zero bytes. Return T and the number
+of bytes written.
 
-If VECTOR is given then it must be a (vector (unsigned-byte 8)),
-and INTEGER is encoded into it beginning at START."
-  
+If OUTPUT is NIL then create a (vector (unsigned-byte 8)) and encode
+INTEGER into it. If START is given then precede the encoding with
+START number of zero bytes. Return the vector, and its length.
+
+If OUTPUT is a (vector (unsigned-byte 8)) then encode INTEGER into it,
+beginning at START. Return OUTPUT and the end index of the encoding."
+
   (declare (type integer integer)
-	   (type (or null (vector (unsigned-byte 8))) vector)
+	   (type (or null stream (vector (unsigned-byte 8))) output)
 	   (type fixnum start))
 
-    (loop
-       with length =  (unsigned-length integer)
-       with end = (+ start length)
-       with out = (or vector (make-array length :element-type '(unsigned-byte 8)))
+  (let* ((length (unsigned-length integer))
+	 (end (+ start length)))
+    
+    (when (null output)
+      (setf output (make-array end :element-type '(unsigned-byte 8) :initial-element 0)))
 
-       for i from start below end
-	 
-       for byte = (logand integer #x7F)
-       do (setf integer (ash integer -7))
-       do (setf (aref out i) (if (zerop integer)
-				 byte
-				 (logior byte #x80)))
-       finally (return (values out i))))
-
+    (etypecase output
+      (vector
+       (loop
+	  for i from start below end
+	  for byte = (logand integer #x7F)
+	  do (setf integer (ash integer -7))
+	  do (setf (aref output i) (if (zerop integer)
+				       byte
+				       (logior byte #x80)))
+	  finally (return (values output i))))
+      (stream
+       (loop
+	  initially (when (plusp start)
+		      (loop
+			 for i from 1 upto start
+			 do (write-byte 0 output)))
+	  for i from start below end
+	  for byte = (logand integer #x7F)
+	  do (setf integer (ash integer -7))
+	  do (write-byte (if (zerop integer)
+			     byte
+			     (logior byte #x80))
+			 output)
+			     
+	  finally (return (values t i)))))))
+	
+      
 
 
 (defun decode-unsigned (input &optional (start 0))
@@ -92,33 +116,54 @@ be the number of bytes consumed in total."
 
 
 
-(defun encode-signed (integer &optional vector (start 0))
-  "Return a (vector (unsigned-byte 8)) encoding INTEGER,
-and the end index of the encoded value.
+(defun encode-signed (integer &optional output (start 0))
+  "Encode INTEGER in the signed LEB128 format.
 
-INTEGER is encoded in the signed LEB-128 format.
+If OUTPUT is a stream then write the encoded INTEGER to it, preceding
+the encoding with START number of zero bytes. Return T and the number
+of bytes written.
 
-If VECTOR is given then it must be a (vector (unsigned-byte 8)),
-and INTEGER is encoded into it beginning at START."
-  
+If OUTPUT is NIL then create a (vector (unsigned-byte 8)) and encode
+INTEGER into it. If START is given then precede the encoding with
+START number of zero bytes. Return the vector, and its length.
+
+If OUTPUT is a (vector (unsigned-byte 8)) then encode INTEGER into it,
+beginning at START. Return OUTPUT and the end index of the encoding."
+
   (declare (type integer integer)
-	   (type (or null (vector (unsigned-byte 8))) vector)
+	   (type (or null stream (vector (unsigned-byte 8))) output)
 	   (type fixnum start))
 
-  (loop
-     with length = (signed-length integer)
-     with end = (+ start length)
-     with out = (or vector (make-array length :element-type '(unsigned-byte 8)))
+  (let* ((length (signed-length integer))
+	 (end (+ start length)))
+    
+    (when (null output)
+      (setf output (make-array end :element-type '(unsigned-byte 8) :initial-element 0)))
 
-     for i from start below end
-       
-     for byte = (logand integer #x7F)
-     do (setf integer (ash integer -7))
-     do (setf (aref out i) (if (= i (1- end))
-			       byte
-			       (logior byte #x80)))
-
-     finally (return (values out end))))
+    (etypecase output
+      (vector
+       (loop
+	  for i from start below end
+	  for byte = (logand integer #x7F)
+	  do (setf integer (ash integer -7))
+	  do (setf (aref output i) (if (= i (1- end))
+				       byte
+				       (logior byte #x80)))
+	  finally (return (values output i))))
+      (stream
+       (loop
+	  initially (when (plusp start)
+		      (loop
+			 for i from 1 upto start
+			 do (write-byte 0 output)))
+	  for i from start below end
+	  for byte = (logand integer #x7F)
+	  do (setf integer (ash integer -7))
+	  do (write-byte (if (= i (1- end))
+			     byte
+			     (logior byte #x80))
+			 output)
+	  finally (return (values t i)))))))
 
 
 
