@@ -1,9 +1,21 @@
+;;;; Copyright 2021 Roy Arne Gangstad
+;;;; 
+;;;; Licensed under the Apache License, Version 2.0 (the "License");
+;;;; you may not use this file except in compliance with the License.
+;;;; You may obtain a copy of the License at
+;;;; 
+;;;;     http://www.apache.org/licenses/LICENSE-2.0
+;;;; 
+;;;; Unless required by applicable law or agreed to in writing, software
+;;;; distributed under the License is distributed on an "AS IS" BASIS,
+;;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;;;; See the License for the specific language governing permissions and
+;;;; limitations under the License.
 
 (in-package #:cl-user)
 
 ;;;; Implements encoding and decoding integers in the signed and
-;;;; unsigned LEB-128 format as described in the wikipedia article
-;;;; 'https://en.wikipedia.org/wiki/LEB128'.
+;;;; unsigned LEB-128 format (see 'https://en.wikipedia.org/wiki/LEB128').
 
 (defpackage #:leb128
   (:use #:cl)
@@ -16,7 +28,6 @@
 	   #:encode-unsigned))
 
 (in-package #:leb128)
-
 
 (defun unsigned-length (integer)
   "Return the length of INTEGER in the unsigned LEB-128 format."
