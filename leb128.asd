@@ -25,5 +25,5 @@
   :maintainer "Roy Arne Gangstad <roy.gangstad@gmail.com>"
   :description "Encode and decode integers in the LEB128 format."
   :license "Apache 2.0"
-  :version "0.9"
+  :version "1"
   :components ((:file "leb128")))

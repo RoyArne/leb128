@@ -1,11 +1,11 @@
 ;;;; Copyright 2021 Roy Arne Gangstad
-;;;; 
+
 ;;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;;; you may not use this file except in compliance with the License.
 ;;;; You may obtain a copy of the License at
-;;;; 
+
 ;;;;     http://www.apache.org/licenses/LICENSE-2.0
-;;;; 
+
 ;;;; Unless required by applicable law or agreed to in writing, software
 ;;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,10 +14,16 @@
 
 (in-package #:cl-user)
 
-;;;; Implements encoding and decoding integers in the signed and
-;;;; unsigned LEB-128 format (see 'https://en.wikipedia.org/wiki/LEB128').
-
 (defpackage #:leb128
+  (:documentation
+   "Implements encoding and decoding integers in the signed and
+unsigned LEB128 format (see 'https://en.wikipedia.org/wiki/LEB128').
+
+Encoding functions are named ENCODE-SIGNED and ENCODE-UNSIGNED, and
+decoding functions DECODE-SIGNED and DECODE-UNSIGNED.
+
+The functions UNSIGNED-LENGTH and SIGNED-LENGTH take an integer and
+returns the number of bytes needed to encode it.")
   (:use #:cl)
   (:export #:unsigned-length
 	   #:encode-unsigned
@@ -25,7 +31,7 @@
 
 	   #:signed-length
 	   #:encode-signed
-	   #:encode-unsigned))
+	   #:decode-signed))
 
 (in-package #:leb128)
 
